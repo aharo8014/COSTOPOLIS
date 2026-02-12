@@ -718,8 +718,16 @@ function showScene(sceneName) {
 
 // Start Mission (ruteo inteligente por ciudad)
 function startMission() {
-    // Flujo unificado e interactivo para TODAS las ciudades:
-    // briefing → atrapa (si existe) → explora → puzzle/case.
+    const city = cityData[gameState.currentCity];
+
+    // Flujo profesional por defecto:
+    // - Ciudades con gameType: van directo al reto especializado (puzzle/minijuego).
+    // - Ciudad base sin gameType: mantiene recorrido completo (atrapa → explora → puzzle).
+    if (city && city.gameType) {
+        startScene('puzzle');
+        return;
+    }
+
     startScene('atrapa');
 }
 
@@ -740,10 +748,18 @@ function startScene(sceneName) {
 function initCardGame() {
     const city = cityData[gameState.currentCity];
 
-    // Si la ciudad no tiene tarjetas configuradas, generar set dinámico
-    // a partir de preguntas/respuestas del caso para mantener interacción.
+    // Protección: ciudades profesionales no deben caer aquí.
+    // Si ocurre por navegación inesperada, reencaminar al minijuego de puzzle.
+    if (city && city.gameType) {
+        startScene('puzzle');
+        return;
+    }
+
+    // Si no hay tarjetas en una ciudad base, salir con aviso claro.
     if (!city.cards || city.cards.length === 0) {
-        city.cards = createDynamicCardsForCity(city);
+        showMessage('⚠️ Esta ciudad no tiene tarjetas de clasificación configuradas.', 'warning', 2200);
+        startScene('explora');
+        return;
     }
     
     const cardsGrid = document.getElementById('cards-grid');
@@ -847,6 +863,8 @@ function dragEnd(event) {
 }
 
 function createDynamicCardsForCity(city) {
+    // LEGACY: se mantiene por compatibilidad, pero el flujo profesional ya no lo usa.
+
     const cards = [];
     const mapByType = {
         MPD: ['material', 'insumo', 'materia prima', 'componente', 'directo'],
