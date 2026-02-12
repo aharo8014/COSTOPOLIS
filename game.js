@@ -1521,7 +1521,11 @@ function initProfessionalPuzzle(city) {
         data: null,
         answers: null,
         totalFields: 0,
-        locked: false
+        locked: false,
+        postgrad: {
+            questions: [],
+            validated: false
+        }
     };
 
     // Genera caso + respuestas esperadas
@@ -1557,13 +1561,22 @@ function initProfessionalPuzzle(city) {
         return;
     }
 
+    // Capa posgrado: defensa técnica + criterio gerencial
+    gameState.caseLab.postgrad.questions = buildPostgradQuestions(city, gameState.caseLab.data, gameState.caseLab.answers);
+    renderPostgradChallenge(container, gameState.caseLab.postgrad.questions);
+    gameState.caseLab.postgrad.questions.forEach((_, idx) => {
+        gameState.caseLab.solved[`pg_${idx}`] = false;
+    });
+
     // Inicializa HUD de progreso
     const totalEl = document.getElementById('arcade-total');
     const progressEl = document.getElementById('arcade-progress');
     const streakEl = document.getElementById('arcade-streak');
     const timeEl = document.getElementById('arcade-time');
 
-    gameState.caseLab.totalFields = Object.keys(gameState.caseLab.answers || {}).filter(k => !k.startsWith('_')).length;
+    const technicalFields = Object.keys(gameState.caseLab.answers || {}).filter(k => !k.startsWith('_')).length;
+    const postgradFields = (gameState.caseLab.postgrad?.questions || []).length;
+    gameState.caseLab.totalFields = technicalFields + postgradFields;
 
     if (totalEl) totalEl.textContent = String(gameState.caseLab.totalFields);
     if (progressEl) progressEl.textContent = "0";
@@ -1571,6 +1584,118 @@ function initProfessionalPuzzle(city) {
     if (timeEl) timeEl.textContent = String(gameState.caseLab.timeLeft);
 
     startCaseTimer();
+}
+
+function buildPostgradQuestions(city, data, answers) {
+    const byType = {
+        'kardex-simulator': [
+            { id: 'risk_method', q: 'Si esperas inflación de compras, ¿qué método tiende a mostrar mayor utilidad contable en el corto plazo?', options: ['FIFO/PEPS', 'Promedio ponderado', 'No cambia'], correct: 'FIFO/PEPS' },
+            { id: 'control_merma', q: 'Para controlar merma anormal, ¿qué indicador gerencial es más accionable semanalmente?', options: ['Rotación por SKU + conteo cíclico', 'Solo utilidad neta mensual', 'Solo ventas brutas'], correct: 'Rotación por SKU + conteo cíclico' },
+            { id: 'policy', q: '¿Qué política reduce riesgo de quiebre y capital inmovilizado simultáneamente?', options: ['Reabasto por punto de pedido con stock de seguridad dinámico', 'Comprar lotes máximos siempre', 'Eliminar control de inventario'], correct: 'Reabasto por punto de pedido con stock de seguridad dinámico' }
+        ],
+        'job-order': [
+            { id: 'base', q: 'Cuando el overhead se explica por automatización, ¿qué base CIF es técnicamente preferible?', options: ['Horas MOD', 'Horas máquina', 'Unidades vendidas'], correct: 'Horas máquina' },
+            { id: 'quote', q: 'Una cotización profesional debe incluir, además del costo unitario:', options: ['Riesgo de capacidad y sensibilidad de margen', 'Solo intuición comercial', 'Solo descuento inmediato'], correct: 'Riesgo de capacidad y sensibilidad de margen' },
+            { id: 'traceability', q: '¿Qué mejora más la auditabilidad de órdenes?', options: ['Time tickets y requisiciones con trazabilidad por lote', 'Notas verbales sin registro', 'Promedios generales sin detalle'], correct: 'Time tickets y requisiciones con trazabilidad por lote' }
+        ],
+        'process-costing': [
+            { id: 'ueq', q: 'En WA, el mayor riesgo técnico es:', options: ['Confundir % de materiales con % de conversión', 'Usar demasiados decimales', 'No usar colores'], correct: 'Confundir % de materiales con % de conversión' },
+            { id: 'wip', q: 'Para reducir sesgo en WIP final, una práctica posgrado es:', options: ['Cierre con evidencia de avance físico por estación', 'Estimación visual sin evidencia', 'Ignorar WIP'], correct: 'Cierre con evidencia de avance físico por estación' },
+            { id: 'kaizen', q: '¿Qué acción impacta más conversión en proceso continuo?', options: ['Reducir reprocesos de cuello de botella', 'Aumentar papelería', 'Subir inventario final'], correct: 'Reducir reprocesos de cuello de botella' }
+        ],
+        'abc-costing': [
+            { id: 'driver', q: 'El criterio clave para seleccionar driver ABC es:', options: ['Causalidad costo-actividad', 'Facilidad estética', 'Preferencia del supervisor'], correct: 'Causalidad costo-actividad' },
+            { id: 'mix', q: 'Si un producto consume más setups y menos volumen, normalmente:', options: ['Subcosteado en sistemas tradicionales', 'Siempre sobrecosteado', 'No cambia nunca'], correct: 'Subcosteado en sistemas tradicionales' },
+            { id: 'decision', q: 'La decisión ejecutiva robusta tras ABC incluye:', options: ['Reprecio/selectividad + rediseño de procesos', 'Bajar precios a todos', 'Ignorar drivers'], correct: 'Reprecio/selectividad + rediseño de procesos' }
+        ],
+        'standard-costing': [
+            { id: 'variance', q: 'Si MPV y MQV son desfavorables simultáneamente, una hipótesis fuerte es:', options: ['Problema proveedor + ineficiencia de uso', 'Éxito total del proceso', 'Solo error de redondeo'], correct: 'Problema proveedor + ineficiencia de uso' },
+            { id: 'labor', q: 'Si tarifa MOD sube pero eficiencia mejora, el análisis correcto es:', options: ['Trade-off costo-calidad/experiencia', 'Todo es negativo', 'No analizar'], correct: 'Trade-off costo-calidad/experiencia' },
+            { id: 'root', q: '¿Qué herramienta fortalece causa raíz de variaciones?', options: ['Ishikawa + 5 porqués con datos', 'Suposición sin datos', 'Eliminar estándares'], correct: 'Ishikawa + 5 porqués con datos' }
+        ]
+    };
+    return byType[city.gameType] || [
+        { id: 'generic_1', q: '¿Qué define un buen modelo de costos?', options: ['Exactitud + trazabilidad + utilidad decisional', 'Solo rapidez', 'Solo complejidad'], correct: 'Exactitud + trazabilidad + utilidad decisional' },
+        { id: 'generic_2', q: '¿Qué mejora más la toma de decisiones?', options: ['Escenarios y sensibilidad', 'Adivinar', 'Eliminar KPIs'], correct: 'Escenarios y sensibilidad' }
+    ];
+}
+
+function renderPostgradChallenge(container, questions) {
+    if (!container || !Array.isArray(questions) || questions.length === 0) return;
+    const panel = document.createElement('div');
+    panel.id = 'postgrad-panel';
+    panel.className = 'mt-6 bg-gradient-to-br from-purple-900/40 to-indigo-900/40 rounded-xl p-4 border border-purple-500/40';
+    panel.innerHTML = `
+        <div class="flex items-center justify-between gap-2 mb-3">
+            <div>
+                <div class="text-lg font-extrabold text-purple-200">🎓 Defensa Ejecutiva (Posgrado)</div>
+                <div class="text-xs text-gray-300">Responde criterios técnicos y gerenciales. Suma al puntaje de exactitud final.</div>
+            </div>
+            <div id="postgrad-score" class="text-sm bg-black/30 border border-purple-400/40 rounded px-3 py-1">0/${questions.length}</div>
+        </div>
+        <div class="space-y-3" id="postgrad-questions">
+            ${questions.map((item, idx) => `
+                <div class="bg-black/25 rounded-lg p-3 border border-gray-700">
+                    <div class="text-sm text-gray-100 font-semibold mb-2">${idx + 1}) ${item.q}</div>
+                    <select id="pg_${idx}" class="w-full bg-black/40 border border-gray-700 rounded px-3 py-2 text-white">
+                        <option value="">Selecciona respuesta</option>
+                        ${item.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('')}
+        </div>
+        <div class="mt-3 flex gap-2">
+            <button onclick="validatePostgradChallenge()" class="bg-purple-700 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded">Validar defensa</button>
+            <button onclick="resetPostgradChallenge()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">Reset defensa</button>
+        </div>
+        <div id="postgrad-feedback" class="mt-2 text-sm text-gray-300"></div>
+    `;
+    container.appendChild(panel);
+}
+
+function validatePostgradChallenge() {
+    const c = gameState.caseLab;
+    if (!c || !c.postgrad || !Array.isArray(c.postgrad.questions)) return;
+
+    let correct = 0;
+    c.postgrad.questions.forEach((q, idx) => {
+        const v = document.getElementById(`pg_${idx}`)?.value || '';
+        const ok = v === q.correct;
+        c.solved[`pg_${idx}`] = ok;
+        if (ok) correct++;
+    });
+    c.postgrad.validated = true;
+    c.scoreLocal = Object.values(c.solved).filter(Boolean).length;
+    updateCaseProgress();
+
+    const score = document.getElementById('postgrad-score');
+    if (score) score.textContent = `${correct}/${c.postgrad.questions.length}`;
+
+    const fb = document.getElementById('postgrad-feedback');
+    if (fb) {
+        fb.innerHTML = correct >= Math.ceil(c.postgrad.questions.length * 0.67)
+            ? '<span class="text-green-300">Excelente defensa técnica: criterio gerencial sólido.</span>'
+            : '<span class="text-yellow-300">Defensa parcial: revisa causalidad, control y decisión ejecutiva.</span>';
+    }
+
+    showMessage(correct >= 2 ? '🎓 Defensa ejecutiva aprobada.' : '⚠️ Defensa ejecutiva débil: mejora el argumento técnico.', correct >= 2 ? 'success' : 'warning', 2400);
+}
+
+function resetPostgradChallenge() {
+    const c = gameState.caseLab;
+    if (!c || !c.postgrad) return;
+    c.postgrad.questions.forEach((_, idx) => {
+        const el = document.getElementById(`pg_${idx}`);
+        if (el) el.value = '';
+        c.solved[`pg_${idx}`] = false;
+    });
+    c.postgrad.validated = false;
+    c.scoreLocal = Object.values(c.solved).filter(Boolean).length;
+    updateCaseProgress();
+    const score = document.getElementById('postgrad-score');
+    if (score) score.textContent = `0/${c.postgrad.questions.length}`;
+    const fb = document.getElementById('postgrad-feedback');
+    if (fb) fb.textContent = '';
 }
 
 function startCaseTimer() {
@@ -2393,10 +2518,16 @@ function finalizeProfessionalCase(opts = {}) {
 
     updateHUD();
 
+    const postgradTotal = (gameState.caseLab.postgrad?.questions || []).length;
+    const postgradCorrect = postgradTotal > 0
+        ? gameState.caseLab.postgrad.questions.filter((_, idx) => gameState.caseLab.solved[`pg_${idx}`]).length
+        : 0;
+
     const msg = `
         <div class="text-left">
             <div class="text-2xl font-extrabold">Caso evaluado</div>
-            <div class="mt-2"><strong>Exactitud:</strong> ${correct}/${total} (${pct.toFixed(0)}%)</div>
+            <div class="mt-2"><strong>Exactitud integral:</strong> ${correct}/${total} (${pct.toFixed(0)}%)</div>
+            <div><strong>Defensa posgrado:</strong> ${postgradCorrect}/${postgradTotal}</div>
             <div><strong>Intentos:</strong> ${attempts} | <strong>Tiempo restante:</strong> ${gameState.caseLab.timeLeft}s</div>
             <div class="mt-2"><strong>Δ Puntaje:</strong> ${scoreDelta >= 0 ? "+" : ""}${scoreDelta}</div>
         </div>
