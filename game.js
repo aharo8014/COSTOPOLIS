@@ -719,12 +719,15 @@ function showScene(sceneName) {
 // Start Mission (ruteo inteligente por ciudad)
 function startMission() {
     const city = cityData[gameState.currentCity];
-    // Ciudad 1 conserva flujo completo (atrapa + explora + puzzle).
-    // Ciudades profesionales (2+) van directo al Caso Aplicado (puzzle).
+
+    // Flujo profesional por defecto:
+    // - Ciudades con gameType: van directo al reto especializado (puzzle/minijuego).
+    // - Ciudad base sin gameType: mantiene recorrido completo (atrapa → explora → puzzle).
     if (city && city.gameType) {
         startScene('puzzle');
         return;
     }
+
     startScene('atrapa');
 }
 
@@ -744,9 +747,17 @@ function startScene(sceneName) {
 // Card Classification Game - MEJORADO CON DRAG & DROP BIDIRECCIONAL
 function initCardGame() {
     const city = cityData[gameState.currentCity];
-    
-    // Si la ciudad no tiene cards, saltar a exploración
-    if (!city.cards) {
+
+    // Protección: ciudades profesionales no deben caer aquí.
+    // Si ocurre por navegación inesperada, reencaminar al minijuego de puzzle.
+    if (city && city.gameType) {
+        startScene('puzzle');
+        return;
+    }
+
+    // Si no hay tarjetas en una ciudad base, salir con aviso claro.
+    if (!city.cards || city.cards.length === 0) {
+        showMessage('⚠️ Esta ciudad no tiene tarjetas de clasificación configuradas.', 'warning', 2200);
         startScene('explora');
         return;
     }
@@ -851,6 +862,62 @@ function dragEnd(event) {
     gameState.draggedCard = null;
 }
 
+function createDynamicCardsForCity(city) {
+    // LEGACY: se mantiene por compatibilidad, pero el flujo profesional ya no lo usa.
+
+    const cards = [];
+    const mapByType = {
+        MPD: ['material', 'insumo', 'materia prima', 'componente', 'directo'],
+        MOD: ['mano de obra', 'operario', 'hora', 'ensamble', 'proceso'],
+        CIF: ['cif', 'indirect', 'energía', 'depreciación', 'setup', 'inspección', 'mantenimiento'],
+        GA: ['admin', 'gerencia', 'oficina', 'contable', 'planeación'],
+        GV: ['venta', 'comercial', 'marketing', 'despacho', 'cliente']
+    };
+
+    const pickType = (text) => {
+        const t = String(text).toLowerCase();
+        for (const [type, keys] of Object.entries(mapByType)) {
+            if (keys.some(k => t.includes(k))) return type;
+        }
+        return 'CIF';
+    };
+
+    if (Array.isArray(city.puzzle)) {
+        city.puzzle.forEach((q, i) => {
+            const label = String(q.question || `Variable ${i + 1}`);
+            cards.push({
+                name: `Dato crítico ${i + 1}: ${label.slice(0, 42)}${label.length > 42 ? '…' : ''}`,
+                type: pickType(label),
+                trap: false
+            });
+        });
+    }
+
+    if (Array.isArray(city.decisions)) {
+        city.decisions.forEach((d, i) => {
+            const label = String(d.text || `Decisión ${i + 1}`);
+            cards.push({
+                name: `Decisión ${i + 1}: ${label.slice(0, 44)}${label.length > 44 ? '…' : ''}`,
+                type: pickType(label),
+                trap: i === 2
+            });
+        });
+    }
+
+    if (cards.length < 10) {
+        const fillers = [
+            { name: 'Checklist de exactitud de cifras', type: 'GA', trap: false },
+            { name: 'Horas de operación del proceso', type: 'MOD', trap: false },
+            { name: 'Consumo técnico de insumos', type: 'MPD', trap: false },
+            { name: 'Control de mantenimiento y energía', type: 'CIF', trap: false },
+            { name: 'Estrategia de precio al cliente', type: 'GV', trap: false }
+        ];
+        while (cards.length < 10) cards.push(fillers[cards.length % fillers.length]);
+    }
+
+    return cards.slice(0, 16);
+}
+
 function checkClassification() {
     const city = cityData[gameState.currentCity];
     const totalCards = city.cards.length;
@@ -941,6 +1008,7 @@ function initExploration() {
     const city = cityData[gameState.currentCity];
     gameState.zonesVisited = [];
     gameState.explorationData = {};
+    renderExplorationZones(city);
     
     const dataCollected = document.getElementById('data-collected');
     const collectedList = document.getElementById('collected-list');
@@ -964,6 +1032,34 @@ function initExploration() {
             statusEl.className = 'bg-gray-700 px-2 py-1 rounded text-xs';
         }
     });
+}
+
+function renderExplorationZones(city) {
+    const container = document.getElementById('exploration-zones');
+    if (!container || !city || !city.zones) return;
+
+    const styles = [
+        { card: 'bg-blue-900/30 border-blue-500 hover:bg-blue-800/40', title: 'text-blue-300', badge: 'bg-blue-700' },
+        { card: 'bg-orange-900/30 border-orange-500 hover:bg-orange-800/40', title: 'text-orange-300', badge: 'bg-orange-700' },
+        { card: 'bg-green-900/30 border-green-500 hover:bg-green-800/40', title: 'text-green-300', badge: 'bg-green-700' },
+        { card: 'bg-purple-900/30 border-purple-500 hover:bg-purple-800/40', title: 'text-purple-300', badge: 'bg-purple-700' }
+    ];
+
+    const zoneEntries = Object.entries(city.zones);
+    container.innerHTML = zoneEntries.map(([zoneKey, zone], idx) => {
+        const style = styles[idx % styles.length];
+        const preview = (zone.data && zone.data[0]) ? zone.data[0] : 'Recolecta indicadores clave de gestión';
+        return `
+            <button onclick="exploreZone('${zoneKey}')" class="exploration-zone ${style.card} border-2 rounded-lg p-6 transition-all" data-zone="${zoneKey}">
+                <div class="text-4xl mb-2">${zone.emoji || '📍'}</div>
+                <div class="font-bold ${style.title} mb-2">${(zone.name || zoneKey).toUpperCase()}</div>
+                <div class="text-sm text-gray-300">${preview}</div>
+                <div class="mt-3 text-xs">
+                    <span class="${style.badge} px-2 py-1 rounded" id="${zoneKey}-status">No visitado</span>
+                </div>
+            </button>
+        `;
+    }).join('');
 }
 
 function exploreZone(zoneName) {
@@ -1443,7 +1539,11 @@ function initProfessionalPuzzle(city) {
         data: null,
         answers: null,
         totalFields: 0,
-        locked: false
+        locked: false,
+        postgrad: {
+            questions: [],
+            validated: false
+        }
     };
 
     // Genera caso + respuestas esperadas
@@ -1479,13 +1579,22 @@ function initProfessionalPuzzle(city) {
         return;
     }
 
+    // Capa posgrado: defensa técnica + criterio gerencial
+    gameState.caseLab.postgrad.questions = buildPostgradQuestions(city, gameState.caseLab.data, gameState.caseLab.answers);
+    renderPostgradChallenge(container, gameState.caseLab.postgrad.questions);
+    gameState.caseLab.postgrad.questions.forEach((_, idx) => {
+        gameState.caseLab.solved[`pg_${idx}`] = false;
+    });
+
     // Inicializa HUD de progreso
     const totalEl = document.getElementById('arcade-total');
     const progressEl = document.getElementById('arcade-progress');
     const streakEl = document.getElementById('arcade-streak');
     const timeEl = document.getElementById('arcade-time');
 
-    gameState.caseLab.totalFields = Object.keys(gameState.caseLab.answers || {}).filter(k => !k.startsWith('_')).length;
+    const technicalFields = Object.keys(gameState.caseLab.answers || {}).filter(k => !k.startsWith('_')).length;
+    const postgradFields = (gameState.caseLab.postgrad?.questions || []).length;
+    gameState.caseLab.totalFields = technicalFields + postgradFields;
 
     if (totalEl) totalEl.textContent = String(gameState.caseLab.totalFields);
     if (progressEl) progressEl.textContent = "0";
@@ -1493,6 +1602,118 @@ function initProfessionalPuzzle(city) {
     if (timeEl) timeEl.textContent = String(gameState.caseLab.timeLeft);
 
     startCaseTimer();
+}
+
+function buildPostgradQuestions(city, data, answers) {
+    const byType = {
+        'kardex-simulator': [
+            { id: 'risk_method', q: 'Si esperas inflación de compras, ¿qué método tiende a mostrar mayor utilidad contable en el corto plazo?', options: ['FIFO/PEPS', 'Promedio ponderado', 'No cambia'], correct: 'FIFO/PEPS' },
+            { id: 'control_merma', q: 'Para controlar merma anormal, ¿qué indicador gerencial es más accionable semanalmente?', options: ['Rotación por SKU + conteo cíclico', 'Solo utilidad neta mensual', 'Solo ventas brutas'], correct: 'Rotación por SKU + conteo cíclico' },
+            { id: 'policy', q: '¿Qué política reduce riesgo de quiebre y capital inmovilizado simultáneamente?', options: ['Reabasto por punto de pedido con stock de seguridad dinámico', 'Comprar lotes máximos siempre', 'Eliminar control de inventario'], correct: 'Reabasto por punto de pedido con stock de seguridad dinámico' }
+        ],
+        'job-order': [
+            { id: 'base', q: 'Cuando el overhead se explica por automatización, ¿qué base CIF es técnicamente preferible?', options: ['Horas MOD', 'Horas máquina', 'Unidades vendidas'], correct: 'Horas máquina' },
+            { id: 'quote', q: 'Una cotización profesional debe incluir, además del costo unitario:', options: ['Riesgo de capacidad y sensibilidad de margen', 'Solo intuición comercial', 'Solo descuento inmediato'], correct: 'Riesgo de capacidad y sensibilidad de margen' },
+            { id: 'traceability', q: '¿Qué mejora más la auditabilidad de órdenes?', options: ['Time tickets y requisiciones con trazabilidad por lote', 'Notas verbales sin registro', 'Promedios generales sin detalle'], correct: 'Time tickets y requisiciones con trazabilidad por lote' }
+        ],
+        'process-costing': [
+            { id: 'ueq', q: 'En WA, el mayor riesgo técnico es:', options: ['Confundir % de materiales con % de conversión', 'Usar demasiados decimales', 'No usar colores'], correct: 'Confundir % de materiales con % de conversión' },
+            { id: 'wip', q: 'Para reducir sesgo en WIP final, una práctica posgrado es:', options: ['Cierre con evidencia de avance físico por estación', 'Estimación visual sin evidencia', 'Ignorar WIP'], correct: 'Cierre con evidencia de avance físico por estación' },
+            { id: 'kaizen', q: '¿Qué acción impacta más conversión en proceso continuo?', options: ['Reducir reprocesos de cuello de botella', 'Aumentar papelería', 'Subir inventario final'], correct: 'Reducir reprocesos de cuello de botella' }
+        ],
+        'abc-costing': [
+            { id: 'driver', q: 'El criterio clave para seleccionar driver ABC es:', options: ['Causalidad costo-actividad', 'Facilidad estética', 'Preferencia del supervisor'], correct: 'Causalidad costo-actividad' },
+            { id: 'mix', q: 'Si un producto consume más setups y menos volumen, normalmente:', options: ['Subcosteado en sistemas tradicionales', 'Siempre sobrecosteado', 'No cambia nunca'], correct: 'Subcosteado en sistemas tradicionales' },
+            { id: 'decision', q: 'La decisión ejecutiva robusta tras ABC incluye:', options: ['Reprecio/selectividad + rediseño de procesos', 'Bajar precios a todos', 'Ignorar drivers'], correct: 'Reprecio/selectividad + rediseño de procesos' }
+        ],
+        'standard-costing': [
+            { id: 'variance', q: 'Si MPV y MQV son desfavorables simultáneamente, una hipótesis fuerte es:', options: ['Problema proveedor + ineficiencia de uso', 'Éxito total del proceso', 'Solo error de redondeo'], correct: 'Problema proveedor + ineficiencia de uso' },
+            { id: 'labor', q: 'Si tarifa MOD sube pero eficiencia mejora, el análisis correcto es:', options: ['Trade-off costo-calidad/experiencia', 'Todo es negativo', 'No analizar'], correct: 'Trade-off costo-calidad/experiencia' },
+            { id: 'root', q: '¿Qué herramienta fortalece causa raíz de variaciones?', options: ['Ishikawa + 5 porqués con datos', 'Suposición sin datos', 'Eliminar estándares'], correct: 'Ishikawa + 5 porqués con datos' }
+        ]
+    };
+    return byType[city.gameType] || [
+        { id: 'generic_1', q: '¿Qué define un buen modelo de costos?', options: ['Exactitud + trazabilidad + utilidad decisional', 'Solo rapidez', 'Solo complejidad'], correct: 'Exactitud + trazabilidad + utilidad decisional' },
+        { id: 'generic_2', q: '¿Qué mejora más la toma de decisiones?', options: ['Escenarios y sensibilidad', 'Adivinar', 'Eliminar KPIs'], correct: 'Escenarios y sensibilidad' }
+    ];
+}
+
+function renderPostgradChallenge(container, questions) {
+    if (!container || !Array.isArray(questions) || questions.length === 0) return;
+    const panel = document.createElement('div');
+    panel.id = 'postgrad-panel';
+    panel.className = 'mt-6 bg-gradient-to-br from-purple-900/40 to-indigo-900/40 rounded-xl p-4 border border-purple-500/40';
+    panel.innerHTML = `
+        <div class="flex items-center justify-between gap-2 mb-3">
+            <div>
+                <div class="text-lg font-extrabold text-purple-200">🎓 Defensa Ejecutiva (Posgrado)</div>
+                <div class="text-xs text-gray-300">Responde criterios técnicos y gerenciales. Suma al puntaje de exactitud final.</div>
+            </div>
+            <div id="postgrad-score" class="text-sm bg-black/30 border border-purple-400/40 rounded px-3 py-1">0/${questions.length}</div>
+        </div>
+        <div class="space-y-3" id="postgrad-questions">
+            ${questions.map((item, idx) => `
+                <div class="bg-black/25 rounded-lg p-3 border border-gray-700">
+                    <div class="text-sm text-gray-100 font-semibold mb-2">${idx + 1}) ${item.q}</div>
+                    <select id="pg_${idx}" class="w-full bg-black/40 border border-gray-700 rounded px-3 py-2 text-white">
+                        <option value="">Selecciona respuesta</option>
+                        ${item.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('')}
+        </div>
+        <div class="mt-3 flex gap-2">
+            <button onclick="validatePostgradChallenge()" class="bg-purple-700 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded">Validar defensa</button>
+            <button onclick="resetPostgradChallenge()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">Reset defensa</button>
+        </div>
+        <div id="postgrad-feedback" class="mt-2 text-sm text-gray-300"></div>
+    `;
+    container.appendChild(panel);
+}
+
+function validatePostgradChallenge() {
+    const c = gameState.caseLab;
+    if (!c || !c.postgrad || !Array.isArray(c.postgrad.questions)) return;
+
+    let correct = 0;
+    c.postgrad.questions.forEach((q, idx) => {
+        const v = document.getElementById(`pg_${idx}`)?.value || '';
+        const ok = v === q.correct;
+        c.solved[`pg_${idx}`] = ok;
+        if (ok) correct++;
+    });
+    c.postgrad.validated = true;
+    c.scoreLocal = Object.values(c.solved).filter(Boolean).length;
+    updateCaseProgress();
+
+    const score = document.getElementById('postgrad-score');
+    if (score) score.textContent = `${correct}/${c.postgrad.questions.length}`;
+
+    const fb = document.getElementById('postgrad-feedback');
+    if (fb) {
+        fb.innerHTML = correct >= Math.ceil(c.postgrad.questions.length * 0.67)
+            ? '<span class="text-green-300">Excelente defensa técnica: criterio gerencial sólido.</span>'
+            : '<span class="text-yellow-300">Defensa parcial: revisa causalidad, control y decisión ejecutiva.</span>';
+    }
+
+    showMessage(correct >= 2 ? '🎓 Defensa ejecutiva aprobada.' : '⚠️ Defensa ejecutiva débil: mejora el argumento técnico.', correct >= 2 ? 'success' : 'warning', 2400);
+}
+
+function resetPostgradChallenge() {
+    const c = gameState.caseLab;
+    if (!c || !c.postgrad) return;
+    c.postgrad.questions.forEach((_, idx) => {
+        const el = document.getElementById(`pg_${idx}`);
+        if (el) el.value = '';
+        c.solved[`pg_${idx}`] = false;
+    });
+    c.postgrad.validated = false;
+    c.scoreLocal = Object.values(c.solved).filter(Boolean).length;
+    updateCaseProgress();
+    const score = document.getElementById('postgrad-score');
+    if (score) score.textContent = `0/${c.postgrad.questions.length}`;
+    const fb = document.getElementById('postgrad-feedback');
+    if (fb) fb.textContent = '';
 }
 
 function startCaseTimer() {
@@ -2315,10 +2536,16 @@ function finalizeProfessionalCase(opts = {}) {
 
     updateHUD();
 
+    const postgradTotal = (gameState.caseLab.postgrad?.questions || []).length;
+    const postgradCorrect = postgradTotal > 0
+        ? gameState.caseLab.postgrad.questions.filter((_, idx) => gameState.caseLab.solved[`pg_${idx}`]).length
+        : 0;
+
     const msg = `
         <div class="text-left">
             <div class="text-2xl font-extrabold">Caso evaluado</div>
-            <div class="mt-2"><strong>Exactitud:</strong> ${correct}/${total} (${pct.toFixed(0)}%)</div>
+            <div class="mt-2"><strong>Exactitud integral:</strong> ${correct}/${total} (${pct.toFixed(0)}%)</div>
+            <div><strong>Defensa posgrado:</strong> ${postgradCorrect}/${postgradTotal}</div>
             <div><strong>Intentos:</strong> ${attempts} | <strong>Tiempo restante:</strong> ${gameState.caseLab.timeLeft}s</div>
             <div class="mt-2"><strong>Δ Puntaje:</strong> ${scoreDelta >= 0 ? "+" : ""}${scoreDelta}</div>
         </div>
@@ -3096,7 +3323,11 @@ function renderMiniKardex(city) {
     const q = document.getElementById('puzzle-questions');
     if (!q) return;
 
-    const data = city.inventoryData;
+    const data = city.kardexData || city.inventoryData;
+    if (!data || !data.sales || !Array.isArray(data.purchases)) {
+        showMessage("❌ Configuración incompleta de Kardex en esta ciudad.", "error", 2600);
+        return;
+    }
     const needed = data.sales.units + (data.waste || 0);
 
     // Estado
@@ -3251,16 +3482,34 @@ function renderMiniJobOrder(city) {
     const q = document.getElementById('puzzle-questions');
     if (!q) return;
 
-    const d = city.jobOrderData;
-    const orders = d.orders.map(o => ({
-        ...o,
-        expected: {
-            MPD: o.materials,
-            MOD: o.laborHours * o.laborRate,
-            CIF: o.laborHours * o.overheadRate
-        },
-        placed: {}
-    }));
+    const d = city.orderData || city.jobOrderData;
+    if (!d || !Array.isArray(d.orders)) {
+        showMessage("❌ Configuración incompleta de Órdenes en esta ciudad.", "error", 2600);
+        return;
+    }
+
+    const orders = d.orders.map(o => {
+        const materials = Number(o.materials ?? o.mpd ?? 0);
+        const laborHours = Number(o.laborHours ?? o.modHours ?? 0);
+        const laborRate = Number(o.laborRate ?? o.modRate ?? 0);
+        const overheadRate = Number(o.overheadRate ?? d.cifRate ?? 0);
+        const units = Number(o.units ?? 1);
+
+        return {
+            id: o.id,
+            units,
+            materials,
+            laborHours,
+            laborRate,
+            overheadRate,
+            expected: {
+                MPD: materials,
+                MOD: laborHours * laborRate,
+                CIF: laborHours * overheadRate
+            },
+            placed: {}
+        };
+    });
     gameState.mini.orders = orders;
     gameState.mini.total = 6;
     gameState.mini.progress = 0;
