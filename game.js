@@ -718,13 +718,8 @@ function showScene(sceneName) {
 
 // Start Mission (ruteo inteligente por ciudad)
 function startMission() {
-    const city = cityData[gameState.currentCity];
-    // Ciudad 1 conserva flujo completo (atrapa + explora + puzzle).
-    // Ciudades profesionales (2+) van directo al Caso Aplicado (puzzle).
-    if (city && city.gameType) {
-        startScene('puzzle');
-        return;
-    }
+    // Flujo unificado e interactivo para TODAS las ciudades:
+    // briefing → atrapa (si existe) → explora → puzzle/case.
     startScene('atrapa');
 }
 
@@ -744,11 +739,11 @@ function startScene(sceneName) {
 // Card Classification Game - MEJORADO CON DRAG & DROP BIDIRECCIONAL
 function initCardGame() {
     const city = cityData[gameState.currentCity];
-    
-    // Si la ciudad no tiene cards, saltar a exploración
-    if (!city.cards) {
-        startScene('explora');
-        return;
+
+    // Si la ciudad no tiene tarjetas configuradas, generar set dinámico
+    // a partir de preguntas/respuestas del caso para mantener interacción.
+    if (!city.cards || city.cards.length === 0) {
+        city.cards = createDynamicCardsForCity(city);
     }
     
     const cardsGrid = document.getElementById('cards-grid');
@@ -851,6 +846,60 @@ function dragEnd(event) {
     gameState.draggedCard = null;
 }
 
+function createDynamicCardsForCity(city) {
+    const cards = [];
+    const mapByType = {
+        MPD: ['material', 'insumo', 'materia prima', 'componente', 'directo'],
+        MOD: ['mano de obra', 'operario', 'hora', 'ensamble', 'proceso'],
+        CIF: ['cif', 'indirect', 'energía', 'depreciación', 'setup', 'inspección', 'mantenimiento'],
+        GA: ['admin', 'gerencia', 'oficina', 'contable', 'planeación'],
+        GV: ['venta', 'comercial', 'marketing', 'despacho', 'cliente']
+    };
+
+    const pickType = (text) => {
+        const t = String(text).toLowerCase();
+        for (const [type, keys] of Object.entries(mapByType)) {
+            if (keys.some(k => t.includes(k))) return type;
+        }
+        return 'CIF';
+    };
+
+    if (Array.isArray(city.puzzle)) {
+        city.puzzle.forEach((q, i) => {
+            const label = String(q.question || `Variable ${i + 1}`);
+            cards.push({
+                name: `Dato crítico ${i + 1}: ${label.slice(0, 42)}${label.length > 42 ? '…' : ''}`,
+                type: pickType(label),
+                trap: false
+            });
+        });
+    }
+
+    if (Array.isArray(city.decisions)) {
+        city.decisions.forEach((d, i) => {
+            const label = String(d.text || `Decisión ${i + 1}`);
+            cards.push({
+                name: `Decisión ${i + 1}: ${label.slice(0, 44)}${label.length > 44 ? '…' : ''}`,
+                type: pickType(label),
+                trap: i === 2
+            });
+        });
+    }
+
+    if (cards.length < 10) {
+        const fillers = [
+            { name: 'Checklist de exactitud de cifras', type: 'GA', trap: false },
+            { name: 'Horas de operación del proceso', type: 'MOD', trap: false },
+            { name: 'Consumo técnico de insumos', type: 'MPD', trap: false },
+            { name: 'Control de mantenimiento y energía', type: 'CIF', trap: false },
+            { name: 'Estrategia de precio al cliente', type: 'GV', trap: false }
+        ];
+        while (cards.length < 10) cards.push(fillers[cards.length % fillers.length]);
+    }
+
+    return cards.slice(0, 16);
+}
+
 function checkClassification() {
     const city = cityData[gameState.currentCity];
     const totalCards = city.cards.length;
@@ -941,6 +990,7 @@ function initExploration() {
     const city = cityData[gameState.currentCity];
     gameState.zonesVisited = [];
     gameState.explorationData = {};
+    renderExplorationZones(city);
     
     const dataCollected = document.getElementById('data-collected');
     const collectedList = document.getElementById('collected-list');
@@ -964,6 +1014,34 @@ function initExploration() {
             statusEl.className = 'bg-gray-700 px-2 py-1 rounded text-xs';
         }
     });
+}
+
+function renderExplorationZones(city) {
+    const container = document.getElementById('exploration-zones');
+    if (!container || !city || !city.zones) return;
+
+    const styles = [
+        { card: 'bg-blue-900/30 border-blue-500 hover:bg-blue-800/40', title: 'text-blue-300', badge: 'bg-blue-700' },
+        { card: 'bg-orange-900/30 border-orange-500 hover:bg-orange-800/40', title: 'text-orange-300', badge: 'bg-orange-700' },
+        { card: 'bg-green-900/30 border-green-500 hover:bg-green-800/40', title: 'text-green-300', badge: 'bg-green-700' },
+        { card: 'bg-purple-900/30 border-purple-500 hover:bg-purple-800/40', title: 'text-purple-300', badge: 'bg-purple-700' }
+    ];
+
+    const zoneEntries = Object.entries(city.zones);
+    container.innerHTML = zoneEntries.map(([zoneKey, zone], idx) => {
+        const style = styles[idx % styles.length];
+        const preview = (zone.data && zone.data[0]) ? zone.data[0] : 'Recolecta indicadores clave de gestión';
+        return `
+            <button onclick="exploreZone('${zoneKey}')" class="exploration-zone ${style.card} border-2 rounded-lg p-6 transition-all" data-zone="${zoneKey}">
+                <div class="text-4xl mb-2">${zone.emoji || '📍'}</div>
+                <div class="font-bold ${style.title} mb-2">${(zone.name || zoneKey).toUpperCase()}</div>
+                <div class="text-sm text-gray-300">${preview}</div>
+                <div class="mt-3 text-xs">
+                    <span class="${style.badge} px-2 py-1 rounded" id="${zoneKey}-status">No visitado</span>
+                </div>
+            </button>
+        `;
+    }).join('');
 }
 
 function exploreZone(zoneName) {

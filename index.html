@@ -341,7 +341,7 @@
         <section id="city-map" class="container mx-auto px-4 py-12 hidden">
             <div class="text-center mb-12">
                 <h2 class="text-4xl md:text-5xl font-bold text-crimson-400 mb-4 pixel-font">MAPA DE COSTÓPOLIS</h2>
-                <p class="text-xl text-gray-300">Selecciona una ciudad para comenzar tu aventura</p>
+                <p class="text-xl text-gray-300">Todas las ciudades están activas: elige cualquier reto y entra al modo impacto profesional</p>
             </div>
             
             <!-- Cities Grid -->
@@ -372,7 +372,7 @@
                 </div>
                 
                 <!-- City 2 -->
-                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="2">
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500 cursor-pointer" onclick="selectCity(2)" data-city="2">
                     <div class="flex justify-between items-start mb-4">
                         <div class="text-3xl">📦</div>
                         <div id="medal-2" class="text-2xl">🔒</div>
@@ -397,7 +397,7 @@
                 </div>
                 
                 <!-- City 3 -->
-                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="3">
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500 cursor-pointer" onclick="selectCity(3)" data-city="3">
                     <div class="flex justify-between items-start mb-4">
                         <div class="text-3xl">📋</div>
                         <div id="medal-3" class="text-2xl">🔒</div>
@@ -422,7 +422,7 @@
                 </div>
                 
                 <!-- City 4 -->
-                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="4">
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500 cursor-pointer" onclick="selectCity(4)" data-city="4">
                     <div class="flex justify-between items-start mb-4">
                         <div class="text-3xl">⚙️</div>
                         <div id="medal-4" class="text-2xl">🔒</div>
@@ -447,7 +447,7 @@
                 </div>
                 
                 <!-- City 5 -->
-                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="5">
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500 cursor-pointer" onclick="selectCity(5)" data-city="5">
                     <div class="flex justify-between items-start mb-4">
                         <div class="text-3xl">🏢</div>
                         <div id="medal-5" class="text-2xl">🔒</div>
@@ -472,7 +472,7 @@
                 </div>
                 
                 <!-- City 6 -->
-                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="6">
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500 cursor-pointer" onclick="selectCity(6)" data-city="6">
                     <div class="flex justify-between items-start mb-4">
                         <div class="text-3xl">📊</div>
                         <div id="medal-6" class="text-2xl">🔒</div>
@@ -499,7 +499,7 @@
             
             <!-- Boss Final -->
             <div class="mt-12 max-w-2xl mx-auto">
-                <div class="city-card rounded-xl p-8 border-4 border-red-600 locked" data-city="boss">
+                <div class="city-card rounded-xl p-8 border-4 border-red-600 cursor-pointer" onclick="selectCity('boss')" data-city="boss">
                     <div class="text-center">
                         <div class="text-6xl mb-4 animate-bounce-slow">👹</div>
                         <h3 class="text-3xl font-bold text-red-400 mb-2 pixel-font">BOSS FINAL</h3>
@@ -665,34 +665,7 @@
                         </div>
                         
                         <!-- Exploration Zones -->
-                        <div class="grid md:grid-cols-3 gap-4 mb-6">
-                            <button onclick="exploreZone('bodega')" class="exploration-zone bg-blue-900/30 border-2 border-blue-500 rounded-lg p-6 hover:bg-blue-800/40 transition-all" data-zone="bodega">
-                                <div class="text-4xl mb-2">📦</div>
-                                <div class="font-bold text-blue-300 mb-2">BODEGA</div>
-                                <div class="text-sm text-gray-300">MP directa vs indirecta</div>
-                                <div class="mt-3 text-xs">
-                                    <span class="bg-blue-700 px-2 py-1 rounded" id="bodega-status">No visitado</span>
-                                </div>
-                            </button>
-                            
-                            <button onclick="exploreZone('produccion')" class="exploration-zone bg-orange-900/30 border-2 border-orange-500 rounded-lg p-6 hover:bg-orange-800/40 transition-all" data-zone="produccion">
-                                <div class="text-4xl mb-2">⚙️</div>
-                                <div class="font-bold text-orange-300 mb-2">PRODUCCIÓN</div>
-                                <div class="text-sm text-gray-300">Horas MOD, supervisión</div>
-                                <div class="mt-3 text-xs">
-                                    <span class="bg-orange-700 px-2 py-1 rounded" id="produccion-status">No visitado</span>
-                                </div>
-                            </button>
-                            
-                            <button onclick="exploreZone('calidad')" class="exploration-zone bg-green-900/30 border-2 border-green-500 rounded-lg p-6 hover:bg-green-800/40 transition-all" data-zone="calidad">
-                                <div class="text-4xl mb-2">✅</div>
-                                <div class="font-bold text-green-300 mb-2">CALIDAD</div>
-                                <div class="text-sm text-gray-300">Inspecciones, merma</div>
-                                <div class="mt-3 text-xs">
-                                    <span class="bg-green-700 px-2 py-1 rounded" id="calidad-status">No visitado</span>
-                                </div>
-                            </button>
-                        </div>
+                        <div id="exploration-zones" class="grid md:grid-cols-3 gap-4 mb-6"></div>
                         
                         <!-- Data Collected -->
                         <div id="data-collected" class="bg-black/30 rounded-lg p-4 mb-4 hidden">
