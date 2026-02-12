@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COSTÓPOLIS – La Aventura del Costeo | Por Alexander Haro</title>
+    <meta name="description" content="Juego educativo interactivo de contabilidad de costos. Acompaña a COSTI en una aventura por 6 ciudades aprendiendo clasificación, inventarios, órdenes, procesos, ABC y costos estándar.">
+    <meta name="author" content="Alexander Haro">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="COSTÓPOLIS – La Aventura del Costeo">
+    <meta property="og:description" content="Aprende contabilidad de costos jugando. 6 ciudades + boss final.">
+    <meta property="og:type" content="website">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        crimson: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            200: '#fecaca',
+                            300: '#fca5a5',
+                            400: '#f87171',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#DC143C',
+                            800: '#991b1b',
+                            900: '#7f1d1d',
+                        }
+                    },
+                    animation: {
+                        'bounce-slow': 'bounce 3s infinite',
+                        'pulse-slow': 'pulse 3s infinite',
+                        'wiggle': 'wiggle 1s ease-in-out infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                        'slide-in': 'slideIn 0.5s ease-out',
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                    },
+                    keyframes: {
+                        wiggle: {
+                            '0%, 100%': { transform: 'rotate(-3deg)' },
+                            '50%': { transform: 'rotate(3deg)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        slideIn: {
+                            '0%': { transform: 'translateX(-100%)', opacity: '0' },
+                            '100%': { transform: 'translateX(0)', opacity: '1' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Press+Start+2P&display=swap');
+        
+        body {
+            font-family: 'Fredoka', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+        
+        .game-container {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+        
+        .city-card {
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(220, 20, 60, 0.1) 0%, rgba(139, 0, 0, 0.1) 100%);
+        }
+        
+        .city-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(220, 20, 60, 0.3);
+        }
+        
+        .locked {
+            filter: grayscale(100%);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .costi-character {
+            width: 120px;
+            height: 120px;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        /* Arcade range styling */
+        input[type="range"] {
+            accent-color: #DC143C;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 9999px;
+            background: #DC143C;
+            border: 2px solid rgba(255,255,255,0.35);
+            box-shadow: 0 6px 16px rgba(220,20,60,0.35);
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 9999px;
+            background: linear-gradient(90deg, rgba(220,20,60,0.25), rgba(34,197,94,0.25));
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 9999px;
+            background: #DC143C;
+            border: 2px solid rgba(255,255,255,0.35);
+            box-shadow: 0 6px 16px rgba(220,20,60,0.35);
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-track {
+            height: 8px;
+            border-radius: 9999px;
+            background: linear-gradient(90deg, rgba(220,20,60,0.25), rgba(34,197,94,0.25));
+        }
+
+        /* Mini-games helpers */
+        .flip-card { perspective: 1000px; }
+        .flip-inner { position: relative; transform-style: preserve-3d; transition: transform 0.5s ease; }
+        .flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+        .flip-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .flip-back { transform: rotateY(180deg); }
+
+        .shake { animation: shake 0.25s ease-in-out 0s 2; }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            50% { transform: translateX(6px); }
+            75% { transform: translateX(-4px); }
+            100% { transform: translateX(0); }
+        }
+
+        .pulse-tile { animation: pulseTile 0.9s ease-in-out infinite; }
+        @keyframes pulseTile {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+
+.coin-icon {
+            animation: spin 3s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
+        }
+        
+        .card-fall {
+            animation: cardFall 2s ease-in-out;
+        }
+        
+        @keyframes cardFall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 0; }
+            100% { transform: translateY(0) rotate(360deg); opacity: 1; }
+        }
+        
+        .combo-effect {
+            animation: comboGlow 0.5s ease-in-out;
+        }
+        
+        @keyframes comboGlow {
+            0%, 100% { box-shadow: 0 0 0 rgba(220, 20, 60, 0); }
+            50% { box-shadow: 0 0 30px rgba(220, 20, 60, 0.8); }
+        }
+    </style>
+</head>
+<body class="game-container min-h-screen text-white">
+    
+    <!-- HUD (Heads-Up Display) - Always Visible -->
+    <div id="hud" class="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-crimson-900 to-crimson-700 shadow-2xl">
+        <div class="container mx-auto px-4 py-3">
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4 text-xs md:text-sm">
+                <!-- Costo Unitario -->
+                <div class="bg-black/30 rounded-lg p-2 backdrop-blur-sm">
+                    <div class="text-crimson-200 font-semibold">CU Actual / Objetivo</div>
+                    <div class="text-white font-bold text-lg" id="hud-cu">$0.00 / $0.00</div>
+                </div>
+                
+                <!-- Merma % -->
+                <div class="bg-black/30 rounded-lg p-2 backdrop-blur-sm">
+                    <div class="text-crimson-200 font-semibold">Merma %</div>
+                    <div class="text-white font-bold text-lg" id="hud-merma">0%</div>
+                </div>
+                
+                <!-- Margen -->
+                <div class="bg-black/30 rounded-lg p-2 backdrop-blur-sm">
+                    <div class="text-crimson-200 font-semibold">Margen %</div>
+                    <div class="text-white font-bold text-lg" id="hud-margen">0%</div>
+                </div>
+                
+                <!-- Salud de Costos -->
+                <div class="bg-black/30 rounded-lg p-2 backdrop-blur-sm">
+                    <div class="text-crimson-200 font-semibold">Salud de Costos</div>
+                    <div class="w-full bg-gray-700 rounded-full h-4 mt-1">
+                        <div id="health-bar" class="health-bar bg-gradient-to-r from-green-500 to-green-400 h-4 rounded-full" style="width: 100%">
+                            <span class="text-xs font-bold px-2" id="health-text">100</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- COSTOCOINS -->
+                <div class="bg-black/30 rounded-lg p-2 backdrop-blur-sm">
+                    <div class="text-yellow-300 font-semibold flex items-center gap-1">
+                        <span class="coin-icon">💰</span> COSTOCOINS
+                    </div>
+                    <div class="text-yellow-400 font-bold text-lg" id="hud-coins">0</div>
+                </div>
+                
+                <!-- Tiempo -->
+                <div class="bg-black/30 rounded-lg p-2 backdrop-blur-sm">
+                    <div class="text-crimson-200 font-semibold">⏱️ Tiempo</div>
+                    <div class="text-white font-bold text-lg" id="hud-time">00:00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="pt-32 pb-16">
+        <!-- Hero Section -->
+        <section id="home-screen" class="container mx-auto px-4 py-12 animate-fade-in">
+            <div class="text-center mb-12">
+                <h1 class="text-5xl md:text-7xl font-bold text-crimson-500 mb-4 pixel-font animate-pulse-slow">
+                    COSTÓPOLIS
+                </h1>
+                <p class="text-2xl md:text-3xl text-crimson-300 mb-2">La Aventura del Costeo</p>
+                <p class="text-lg text-gray-300 mb-8">Por Alexander Haro</p>
+                
+                <!-- COSTI Character -->
+                <div class="flex justify-center mb-8">
+                    <div class="costi-character animate-float" id="costi-main">
+                        <svg viewBox="0 0 200 200" class="w-full h-full">
+                            <!-- Body -->
+                            <ellipse cx="100" cy="120" rx="50" ry="60" fill="#DC143C"/>
+                            
+                            <!-- Head -->
+                            <circle cx="100" cy="70" r="35" fill="#FFD700"/>
+                            
+                            <!-- Helmet -->
+                            <path d="M 70 70 Q 70 40 100 40 Q 130 40 130 70" fill="#FF4500" stroke="#DC143C" stroke-width="3"/>
+                            <rect x="95" y="35" width="10" height="15" fill="#FFD700" rx="2"/>
+                            
+                            <!-- Eyes -->
+                            <circle cx="90" cy="70" r="5" fill="#000"/>
+                            <circle cx="110" cy="70" r="5" fill="#000"/>
+                            <circle cx="92" cy="68" r="2" fill="#FFF"/>
+                            <circle cx="112" cy="68" r="2" fill="#FFF"/>
+                            
+                            <!-- Smile -->
+                            <path d="M 85 80 Q 100 88 115 80" stroke="#000" stroke-width="2" fill="none"/>
+                            
+                            <!-- Calculator -->
+                            <rect x="75" y="130" width="30" height="40" fill="#333" rx="3"/>
+                            <rect x="78" y="133" width="24" height="12" fill="#90EE90"/>
+                            <text x="90" y="142" text-anchor="middle" font-size="8" fill="#000" font-weight="bold">123</text>
+                            
+                            <!-- Calculator buttons -->
+                            <circle cx="83" cy="152" r="2" fill="#666"/>
+                            <circle cx="90" cy="152" r="2" fill="#666"/>
+                            <circle cx="97" cy="152" r="2" fill="#666"/>
+                            <circle cx="83" cy="159" r="2" fill="#666"/>
+                            <circle cx="90" cy="159" r="2" fill="#666"/>
+                            <circle cx="97" cy="159" r="2" fill="#666"/>
+                            <circle cx="83" cy="166" r="2" fill="#DC143C"/>
+                            <circle cx="90" cy="166" r="2" fill="#DC143C"/>
+                            <circle cx="97" cy="166" r="2" fill="#DC143C"/>
+                            
+                            <!-- Arms -->
+                            <ellipse cx="60" cy="120" rx="12" ry="30" fill="#DC143C" transform="rotate(-20 60 120)"/>
+                            <ellipse cx="140" cy="120" rx="12" ry="30" fill="#DC143C" transform="rotate(20 140 120)"/>
+                            
+                            <!-- Legs -->
+                            <ellipse cx="85" cy="170" rx="10" ry="25" fill="#DC143C"/>
+                            <ellipse cx="115" cy="170" rx="10" ry="25" fill="#DC143C"/>
+                            
+                            <!-- Feet -->
+                            <ellipse cx="85" cy="190" rx="12" ry="8" fill="#000"/>
+                            <ellipse cx="115" cy="190" rx="12" ry="8" fill="#000"/>
+                        </svg>
+                    </div>
+                </div>
+                
+                <button onclick="startGame()" class="bg-crimson-700 hover:bg-crimson-600 text-white font-bold py-4 px-8 rounded-full text-xl shadow-2xl transform hover:scale-110 transition-all duration-300 pixel-font">
+                    🎮 JUGAR
+                </button>
+                
+                <div class="mt-8 text-gray-300 max-w-2xl mx-auto">
+                    <p class="mb-4">¡Ayuda a <strong class="text-crimson-400">COSTI</strong> a completar 6 ciudades y vencer al BOSS final!</p>
+                    <p>Mantén tus indicadores en verde: <strong>Costo Unitario</strong>, <strong>Merma %</strong> y <strong>Margen</strong></p>
+                </div>
+            </div>
+            
+            <!-- Game Objectives -->
+            <div class="grid md:grid-cols-3 gap-6 mt-12 max-w-4xl mx-auto">
+                <div class="bg-gradient-to-br from-green-900/50 to-green-700/30 rounded-xl p-6 border-2 border-green-500/50">
+                    <div class="text-4xl mb-3">🎯</div>
+                    <h3 class="text-xl font-bold text-green-300 mb-2">Objetivo</h3>
+                    <p class="text-gray-300">Completar 6 ciudades manteniendo 3 barras en verde</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-yellow-900/50 to-yellow-700/30 rounded-xl p-6 border-2 border-yellow-500/50">
+                    <div class="text-4xl mb-3">💰</div>
+                    <h3 class="text-xl font-bold text-yellow-300 mb-2">Economía</h3>
+                    <p class="text-gray-300">Gana COSTOCOINS y úsalos sabiamente en pistas y escudos</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-purple-900/50 to-purple-700/30 rounded-xl p-6 border-2 border-purple-500/50">
+                    <div class="text-4xl mb-3">🏆</div>
+                    <h3 class="text-xl font-bold text-purple-300 mb-2">Medallas</h3>
+                    <p class="text-gray-300">Oro (3/3), Plata (2/3), Bronce (1/3) por ciudad</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- City Map -->
+        <section id="city-map" class="container mx-auto px-4 py-12 hidden">
+            <div class="text-center mb-12">
+                <h2 class="text-4xl md:text-5xl font-bold text-crimson-400 mb-4 pixel-font">MAPA DE COSTÓPOLIS</h2>
+                <p class="text-xl text-gray-300">Selecciona una ciudad para comenzar tu aventura</p>
+            </div>
+            
+            <!-- Cities Grid -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                <!-- City 1 -->
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500 cursor-pointer" onclick="selectCity(1)" data-city="1">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="text-3xl">🏛️</div>
+                        <div id="medal-1" class="text-2xl">🔒</div>
+                    </div>
+                    <h3 class="text-2xl font-bold text-crimson-300 mb-2">Ciudad 1</h3>
+                    <h4 class="text-xl font-semibold text-white mb-3">Barrio de los Costos</h4>
+                    <p class="text-gray-300 mb-4">Aprende a clasificar costos: directo/indirecto, fijo/variable, producto/periodo</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Minijuego: Atrapa y Clasifica</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Explora: Bodega, Producción, Admin</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-yellow-400">⚡</span>
+                            <span>Meta: ≥85% clasificación correcta</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- City 2 -->
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="2">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="text-3xl">📦</div>
+                        <div id="medal-2" class="text-2xl">🔒</div>
+                    </div>
+                    <h3 class="text-2xl font-bold text-crimson-300 mb-2">Ciudad 2</h3>
+                    <h4 class="text-xl font-semibold text-white mb-3">Kardex Park</h4>
+                    <p class="text-gray-300 mb-4">Domina inventarios: PEPS vs Promedio, costo de ventas y merma</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Métodos: PEPS y Promedio</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Control de merma</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-yellow-400">⚡</span>
+                            <span>Meta: Merma ≤4%, Margen ≥28%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- City 3 -->
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="3">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="text-3xl">📋</div>
+                        <div id="medal-3" class="text-2xl">🔒</div>
+                    </div>
+                    <h3 class="text-2xl font-bold text-crimson-300 mb-2">Ciudad 3</h3>
+                    <h4 class="text-xl font-semibold text-white mb-3">Órdenlandia</h4>
+                    <p class="text-gray-300 mb-4">Costeo por órdenes: MPD + MOD + CIF aplicado</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Requisición de materiales</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Parte de horas (Time ticket)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-yellow-400">⚡</span>
+                            <span>Meta: CIF aplicado correcto</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- City 4 -->
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="4">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="text-3xl">⚙️</div>
+                        <div id="medal-4" class="text-2xl">🔒</div>
+                    </div>
+                    <h3 class="text-2xl font-bold text-crimson-300 mb-2">Ciudad 4</h3>
+                    <h4 class="text-xl font-semibold text-white mb-3">Procesópolis</h4>
+                    <p class="text-gray-300 mb-4">Costeo por procesos: UEQ y asignación terminados vs WIP</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Unidades Equivalentes (UEQ)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>WIP: Materiales vs Conversión</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-yellow-400">⚡</span>
+                            <span>Meta: Cálculo UEQ correcto</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- City 5 -->
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="5">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="text-3xl">🏢</div>
+                        <div id="medal-5" class="text-2xl">🔒</div>
+                    </div>
+                    <h3 class="text-2xl font-bold text-crimson-300 mb-2">Ciudad 5</h3>
+                    <h4 class="text-xl font-semibold text-white mb-3">ABC Towers</h4>
+                    <p class="text-gray-300 mb-4">Activity-Based Costing: actividades, drivers y subsidio cruzado</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Pools de costos</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Cost drivers (Setup, Inspección)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-yellow-400">⚡</span>
+                            <span>Meta: Evitar subsidio cruzado</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- City 6 -->
+                <div class="city-card rounded-xl p-6 border-2 border-crimson-500/50 locked" data-city="6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="text-3xl">📊</div>
+                        <div id="medal-6" class="text-2xl">🔒</div>
+                    </div>
+                    <h3 class="text-2xl font-bold text-crimson-300 mb-2">Ciudad 6</h3>
+                    <h4 class="text-xl font-semibold text-white mb-3">Estándar City</h4>
+                    <p class="text-gray-300 mb-4">Costos estándar: variaciones de MP, MOD y CIF</p>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Variación precio/cantidad MP</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">✓</span>
+                            <span>Variación tarifa/eficiencia MOD</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-yellow-400">⚡</span>
+                            <span>Meta: Análisis de variaciones</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Boss Final -->
+            <div class="mt-12 max-w-2xl mx-auto">
+                <div class="city-card rounded-xl p-8 border-4 border-red-600 locked" data-city="boss">
+                    <div class="text-center">
+                        <div class="text-6xl mb-4 animate-bounce-slow">👹</div>
+                        <h3 class="text-3xl font-bold text-red-400 mb-2 pixel-font">BOSS FINAL</h3>
+                        <h4 class="text-2xl font-semibold text-white mb-4">El Cuello de Botella</h4>
+                        <p class="text-gray-300 mb-4">Mix óptimo bajo restricción de capacidad. ¡El desafío definitivo!</p>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-center gap-2">
+                                <span class="text-red-400">💀</span>
+                                <span>Contribución por recurso escaso</span>
+                            </div>
+                            <div class="flex items-center justify-center gap-2">
+                                <span class="text-red-400">💀</span>
+                                <span>Decisión bajo restricción</span>
+                            </div>
+                            <div class="flex items-center justify-center gap-2">
+                                <span class="text-yellow-400">⚡</span>
+                                <span>Meta: Maximizar contribución total</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-8">
+                <button onclick="backToHome()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg">
+                    ← Volver al Inicio
+                </button>
+            </div>
+        </section>
+        
+        <!-- City Game Screen -->
+        <section id="city-game" class="container mx-auto px-4 py-12 hidden">
+            <div class="max-w-5xl mx-auto">
+                <!-- City Header -->
+                <div class="text-center mb-8">
+                    <h2 id="city-title" class="text-4xl font-bold text-crimson-400 mb-2 pixel-font">CIUDAD 1</h2>
+                    <h3 id="city-name" class="text-2xl text-white mb-4">Barrio de los Costos</h3>
+                    <div id="city-progress" class="flex justify-center gap-2 mb-4">
+                        <div class="w-16 h-2 bg-gray-700 rounded-full"><div class="h-full bg-crimson-500 rounded-full" style="width: 0%"></div></div>
+                        <div class="w-16 h-2 bg-gray-700 rounded-full"></div>
+                        <div class="w-16 h-2 bg-gray-700 rounded-full"></div>
+                        <div class="w-16 h-2 bg-gray-700 rounded-full"></div>
+                    </div>
+                </div>
+                
+                <!-- Scene 1: Briefing -->
+                <div id="scene-briefing" class="bg-gradient-to-br from-blue-900/50 to-blue-700/30 rounded-xl p-8 border-2 border-blue-500/50">
+                    <div class="flex flex-col md:flex-row gap-6 items-center">
+                        <div class="w-32 h-32 flex-shrink-0">
+                            <svg viewBox="0 0 200 200" class="w-full h-full animate-float">
+                                <!-- NPC Character -->
+                                <circle cx="100" cy="80" r="40" fill="#4A90E2"/>
+                                <circle cx="90" cy="75" r="5" fill="#000"/>
+                                <circle cx="110" cy="75" r="5" fill="#000"/>
+                                <path d="M 85 90 Q 100 100 115 90" stroke="#000" stroke-width="2" fill="none"/>
+                                <rect x="70" y="120" width="60" height="70" fill="#4A90E2" rx="10"/>
+                                <text x="100" y="160" text-anchor="middle" font-size="24" fill="#FFF">📊</text>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="text-2xl font-bold text-blue-300 mb-3">¡Bienvenido a la Ciudad 1!</h4>
+                            <p class="text-gray-200 mb-4" id="briefing-text">
+                                Hola, soy el Contador Jefe. En esta ciudad aprenderás a clasificar costos correctamente. 
+                                Es fundamental distinguir entre costos directos e indirectos, fijos y variables, 
+                                y costos de producto vs periodo.
+                            </p>
+                            <div class="bg-black/30 rounded-lg p-4 mb-4">
+                                <h5 class="font-bold text-yellow-300 mb-2">🎯 Metas del Nivel:</h5>
+                                <ul class="space-y-1 text-sm" id="briefing-goals">
+                                    <li>✓ Clasificar correctamente ≥85% de las tarjetas</li>
+                                    <li>✓ Identificar 2 costos "trampa"</li>
+                                    <li>✓ Mantener Salud de Costos ≥70</li>
+                                </ul>
+                            </div>
+                            <button onclick="startMission()" class="bg-crimson-700 hover:bg-crimson-600 text-white font-bold py-3 px-6 rounded-lg">
+                                Comenzar Misión →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scene 2: Atrapa y Clasifica -->
+                <div id="scene-atrapa" class="hidden">
+                    <div class="bg-gradient-to-br from-purple-900/50 to-purple-700/30 rounded-xl p-8 border-2 border-purple-500/50">
+                        <h4 class="text-2xl font-bold text-purple-300 mb-4 text-center">🎯 Atrapa y Clasifica</h4>
+                        <p class="text-center text-gray-300 mb-6">Arrastra cada tarjeta a la bandeja correcta. ¡Cuidado con las trampas!</p>
+                        
+                        <!-- Score & Combo -->
+                        <div class="flex justify-between mb-6">
+                            <div class="bg-black/30 rounded-lg px-4 py-2">
+                                <span class="text-yellow-300 font-bold">Puntos: </span>
+                                <span id="game-score" class="text-white font-bold">0</span>
+                            </div>
+                            <div class="bg-black/30 rounded-lg px-4 py-2">
+                                <span class="text-orange-300 font-bold">Combo: </span>
+                                <span id="game-combo" class="text-white font-bold">0</span>
+                            </div>
+                            <div class="bg-black/30 rounded-lg px-4 py-2">
+                                <span class="text-green-300 font-bold">Correctas: </span>
+                                <span id="game-correct" class="text-white font-bold">0/24</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Drop Zones -->
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                            <div class="drop-zone bg-green-900/30 border-2 border-green-500 rounded-lg p-4 min-h-[100px] text-center" data-type="MPD">
+                                <div class="font-bold text-green-300 mb-2">MPD</div>
+                                <div class="text-xs text-gray-400">Materia Prima Directa</div>
+                            </div>
+                            <div class="drop-zone bg-blue-900/30 border-2 border-blue-500 rounded-lg p-4 min-h-[100px] text-center" data-type="MOD">
+                                <div class="font-bold text-blue-300 mb-2">MOD</div>
+                                <div class="text-xs text-gray-400">Mano de Obra Directa</div>
+                            </div>
+                            <div class="drop-zone bg-yellow-900/30 border-2 border-yellow-500 rounded-lg p-4 min-h-[100px] text-center" data-type="CIF">
+                                <div class="font-bold text-yellow-300 mb-2">CIF</div>
+                                <div class="text-xs text-gray-400">Costos Ind. Fabricación</div>
+                            </div>
+                            <div class="drop-zone bg-red-900/30 border-2 border-red-500 rounded-lg p-4 min-h-[100px] text-center" data-type="GA">
+                                <div class="font-bold text-red-300 mb-2">G. Adm</div>
+                                <div class="text-xs text-gray-400">Gastos Administrativos</div>
+                            </div>
+                            <div class="drop-zone bg-purple-900/30 border-2 border-purple-500 rounded-lg p-4 min-h-[100px] text-center" data-type="GV">
+                                <div class="font-bold text-purple-300 mb-2">G. Venta</div>
+                                <div class="text-xs text-gray-400">Gastos de Venta</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Cards Area -->
+                        <div id="cards-container" class="bg-black/20 rounded-lg p-6 min-h-[200px] border-2 border-dashed border-gray-500">
+                            <div class="text-center text-gray-400 mb-4">Tarjetas de Costos</div>
+                            <div id="cards-grid" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <!-- Cards will be generated here -->
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-6">
+                            <button onclick="checkClassification()" class="bg-crimson-700 hover:bg-crimson-600 text-white font-bold py-3 px-8 rounded-lg">
+                                Verificar Clasificación
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scene 3: Explora y Recolecta -->
+                <div id="scene-explora" class="hidden">
+                    <div class="bg-gradient-to-br from-green-900/50 to-green-700/30 rounded-xl p-8 border-2 border-green-500/50">
+                        <h4 class="text-2xl font-bold text-green-300 mb-4 text-center">🔍 Explora y Recolecta Datos</h4>
+                        <p class="text-center text-gray-300 mb-6">Visita las 3 zonas y recolecta información de costos</p>
+                        
+                        <!-- COSTI Walking -->
+                        <div class="relative h-40 mb-6 bg-black/20 rounded-lg overflow-hidden">
+                            <div id="costi-explorer" class="absolute bottom-4 transition-all duration-1000" style="left: 10%;">
+                                <div class="w-16 h-16">
+                                    <svg viewBox="0 0 200 200" class="w-full h-full">
+                                        <ellipse cx="100" cy="120" rx="30" ry="40" fill="#DC143C"/>
+                                        <circle cx="100" cy="70" r="25" fill="#FFD700"/>
+                                        <path d="M 80 70 Q 80 50 100 50 Q 120 50 120 70" fill="#FF4500"/>
+                                        <circle cx="92" cy="70" r="3" fill="#000"/>
+                                        <circle cx="108" cy="70" r="3" fill="#000"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Exploration Zones -->
+                        <div class="grid md:grid-cols-3 gap-4 mb-6">
+                            <button onclick="exploreZone('bodega')" class="exploration-zone bg-blue-900/30 border-2 border-blue-500 rounded-lg p-6 hover:bg-blue-800/40 transition-all" data-zone="bodega">
+                                <div class="text-4xl mb-2">📦</div>
+                                <div class="font-bold text-blue-300 mb-2">BODEGA</div>
+                                <div class="text-sm text-gray-300">MP directa vs indirecta</div>
+                                <div class="mt-3 text-xs">
+                                    <span class="bg-blue-700 px-2 py-1 rounded" id="bodega-status">No visitado</span>
+                                </div>
+                            </button>
+                            
+                            <button onclick="exploreZone('produccion')" class="exploration-zone bg-orange-900/30 border-2 border-orange-500 rounded-lg p-6 hover:bg-orange-800/40 transition-all" data-zone="produccion">
+                                <div class="text-4xl mb-2">⚙️</div>
+                                <div class="font-bold text-orange-300 mb-2">PRODUCCIÓN</div>
+                                <div class="text-sm text-gray-300">Horas MOD, supervisión</div>
+                                <div class="mt-3 text-xs">
+                                    <span class="bg-orange-700 px-2 py-1 rounded" id="produccion-status">No visitado</span>
+                                </div>
+                            </button>
+                            
+                            <button onclick="exploreZone('calidad')" class="exploration-zone bg-green-900/30 border-2 border-green-500 rounded-lg p-6 hover:bg-green-800/40 transition-all" data-zone="calidad">
+                                <div class="text-4xl mb-2">✅</div>
+                                <div class="font-bold text-green-300 mb-2">CALIDAD</div>
+                                <div class="text-sm text-gray-300">Inspecciones, merma</div>
+                                <div class="mt-3 text-xs">
+                                    <span class="bg-green-700 px-2 py-1 rounded" id="calidad-status">No visitado</span>
+                                </div>
+                            </button>
+                        </div>
+                        
+                        <!-- Data Collected -->
+                        <div id="data-collected" class="bg-black/30 rounded-lg p-4 mb-4 hidden">
+                            <h5 class="font-bold text-yellow-300 mb-2">📊 Datos Recolectados:</h5>
+                            <div id="collected-list" class="space-y-1 text-sm"></div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <button id="btn-continue-puzzle" type="button" onclick="startScene('puzzle')" class="bg-crimson-700 hover:bg-crimson-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg">
+                                Continuar al Reto →
+                            </button>
+                            <p class="text-xs text-gray-400 mt-2">Tip: explorar zonas te da bonificaciones, pero no es obligatorio.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scene 4: Puzzle y Decisión -->
+                <div id="scene-puzzle" class="hidden">
+                    <div class="bg-gradient-to-br from-orange-900/50 to-orange-700/30 rounded-xl p-8 border-2 border-orange-500/50">
+                        <h4 id="puzzle-title" class="text-2xl font-bold text-orange-300 mb-4 text-center">Caso Aplicado</h4>
+                        <p id="puzzle-subtitle" class="text-center text-gray-300 mb-6">Resuelve el caso, valida tus cálculos y toma una decisión gerencial.</p>
+                        
+                        <!-- Puzzle Form -->
+                        <div id="puzzle-form" class="bg-black/30 rounded-lg p-6 mb-6 max-w-2xl mx-auto">
+                            <div id="arcade-hud" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                                <div class="bg-gray-900/60 rounded-lg px-4 py-3 border border-gray-700 text-center">
+                                    <div class="text-xs text-gray-400">⏳ Tiempo</div>
+                                    <div class="text-2xl font-extrabold text-white"><span id="arcade-time">60</span>s</div>
+                                </div>
+                                <div class="bg-gray-900/60 rounded-lg px-4 py-3 border border-gray-700 text-center">
+                                    <div class="text-xs text-gray-400">🔥 Racha</div>
+                                    <div class="text-2xl font-extrabold text-white"><span id="arcade-streak">0</span></div>
+                                </div>
+                                <div class="bg-gray-900/60 rounded-lg px-4 py-3 border border-gray-700 text-center">
+                                    <div class="text-xs text-gray-400">✅ Progreso</div>
+                                    <div class="text-2xl font-extrabold text-white"><span id="arcade-progress">0</span>/<span id="arcade-total">0</span></div>
+                                </div>
+                            </div>
+
+                            <div id="arcade-stage-label" class="text-center text-sm text-gray-300 mb-4">
+                                Ronda 1/2: Panel de Control (ajusta y bloquea tus resultados)
+                            </div>
+
+                            <div class="space-y-4" id="puzzle-questions">
+                                <!-- Arcade modules will be generated based on city -->
+                            </div>
+
+                            <div id="audit-zone" class="hidden mt-6 bg-black/30 rounded-lg p-5 border border-gray-700">
+                                <h6 class="text-lg font-bold text-purple-300 mb-2 text-center">🕵️ Ronda 2/2: Caza de Banderas Rojas</h6>
+                                <p class="text-center text-gray-300 mb-4 text-sm">Haz clic SOLO en documentos sospechosos antes de que se acabe el tiempo.</p>
+                                <div id="audit-grid" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+                                <div class="text-center text-xs text-gray-400 mt-3">Aciertos reducen merma; errores dañan tu Salud de Costos.</div>
+                            </div>
+                            
+                            <div class="text-center mt-6">
+                                <button onclick="submitPuzzle()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg">
+                                    Finalizar Reto
+                                </button>
+                                <button onclick="useTutorMode()" class="ml-3 bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-6 rounded-lg text-sm">
+                                    💡 Tutor (-1 COSTOCOIN)
+                                </button>
+                            </div>
+</div>
+                        
+                        <!-- Decision Panel -->
+                        <div id="decision-panel" class="hidden">
+                            <h5 class="text-xl font-bold text-white mb-4 text-center">⚡ Decisión Final</h5>
+                            <p class="text-center text-gray-300 mb-6">Elige tu estrategia. Cada decisión tiene consecuencias.</p>
+                            
+                            <div class="grid md:grid-cols-3 gap-4" id="decision-options">
+                                <!-- Decision buttons will be generated -->
+                            </div>
+                        </div>
+                        
+                        <!-- Results -->
+                        <div id="level-results" class="hidden mt-6">
+                            <div class="bg-black/40 rounded-lg p-6 text-center">
+                                <div id="medal-earned" class="text-6xl mb-4">🥇</div>
+                                <h5 class="text-2xl font-bold text-yellow-300 mb-2">¡Nivel Completado!</h5>
+                                <div id="results-summary" class="space-y-2 text-lg"></div>
+                                <div class="mt-6">
+                                    <button onclick="backToCityMap()" class="bg-crimson-700 hover:bg-crimson-600 text-white font-bold py-3 px-8 rounded-lg">
+                                        Volver al Mapa
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-8">
+                    <button onclick="backToCityMap()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg">
+                        ← Volver al Mapa
+                    </button>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Game Rules & Economy -->
+        <section id="game-info" class="container mx-auto px-4 py-12 max-w-6xl">
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Rules -->
+                <div class="bg-gradient-to-br from-crimson-900/50 to-crimson-700/30 rounded-xl p-8 border-2 border-crimson-500/50">
+                    <h3 class="text-2xl font-bold text-crimson-300 mb-4">📜 Reglas del Juego</h3>
+                    <div class="space-y-3 text-gray-300">
+                        <div class="flex items-start gap-2">
+                            <span class="text-crimson-400 font-bold">1.</span>
+                            <p>Cada ciudad tiene <strong>4 escenas</strong>: Briefing, Atrapa y Clasifica, Explora y Recolecta, Puzzle + Decisión</p>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-crimson-400 font-bold">2.</span>
+                            <p><strong>Medallas:</strong> Oro (3/3 metas), Plata (2/3 metas), Bronce (1/3 metas)</p>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-crimson-400 font-bold">3.</span>
+                            <p><strong>Modo Tutor:</strong> Obtén pistas pero reduce el puntaje</p>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-crimson-400 font-bold">4.</span>
+                            <p>Mantén 3 indicadores en verde: <strong>CU, Merma %, Margen %</strong></p>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-crimson-400 font-bold">5.</span>
+                            <p>Completa las 6 ciudades para desbloquear el <strong>BOSS Final</strong></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Economy -->
+                <div class="bg-gradient-to-br from-yellow-900/50 to-yellow-700/30 rounded-xl p-8 border-2 border-yellow-500/50">
+                    <h3 class="text-2xl font-bold text-yellow-300 mb-4">💰 Economía del Juego</h3>
+                    
+                    <div class="mb-6">
+                        <h4 class="font-bold text-yellow-200 mb-2">Ganar Puntos:</h4>
+                        <div class="space-y-1 text-sm text-gray-300">
+                            <div>✓ Clasificación correcta: <span class="text-green-400 font-bold">+10</span></div>
+                            <div>✓ Cálculo correcto: <span class="text-green-400 font-bold">+25</span></div>
+                            <div>✓ Detectar error oculto: <span class="text-green-400 font-bold">+20</span></div>
+                            <div>✗ Error que cambia CU/margen: <span class="text-red-400 font-bold">-10</span></div>
+                            <div>✗ Decisión que empeora: <span class="text-red-400 font-bold">-15</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h4 class="font-bold text-yellow-200 mb-2">COSTOCOINS (Gastar en):</h4>
+                        <div class="space-y-1 text-sm text-gray-300">
+                            <div>💡 Pista: <span class="text-yellow-400 font-bold">-1 COSTOCOIN</span></div>
+                            <div>🔍 Revisión del Auditor: <span class="text-yellow-400 font-bold">-2 COSTOCOINS</span></div>
+                            <div>🛡️ Escudo de calidad: <span class="text-yellow-400 font-bold">-2 COSTOCOINS</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-orange-900/30 rounded-lg p-3">
+                        <h4 class="font-bold text-orange-300 mb-1">🔥 Combo Precisión</h4>
+                        <p class="text-sm text-gray-300">5 aciertos seguidos = <span class="text-orange-400 font-bold">+30 puntos</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Event Cards -->
+            <div class="mt-8 bg-gradient-to-br from-purple-900/50 to-purple-700/30 rounded-xl p-8 border-2 border-purple-500/50">
+                <h3 class="text-2xl font-bold text-purple-300 mb-4">🎴 Eventos Aleatorios</h3>
+                <p class="text-gray-300 mb-4">Aparecen cada 2 escenas. ¡Prepárate para lo inesperado!</p>
+                
+                <div class="grid md:grid-cols-4 gap-4">
+                    <div class="bg-black/30 rounded-lg p-4 text-center">
+                        <div class="text-3xl mb-2">🥷</div>
+                        <div class="font-bold text-purple-300 text-sm mb-1">Proveedor Ninja</div>
+                        <div class="text-xs text-gray-400">MP +12%</div>
+                    </div>
+                    <div class="bg-black/30 rounded-lg p-4 text-center">
+                        <div class="text-3xl mb-2">🤖</div>
+                        <div class="font-bold text-purple-300 text-sm mb-1">Máquina Traviesa</div>
+                        <div class="text-xs text-gray-400">Eficiencia MOD baja</div>
+                    </div>
+                    <div class="bg-black/30 rounded-lg p-4 text-center">
+                        <div class="text-3xl mb-2">👻</div>
+                        <div class="font-bold text-purple-300 text-sm mb-1">Scrap Fantasma</div>
+                        <div class="text-xs text-gray-400">Merma oculta</div>
+                    </div>
+                    <div class="bg-black/30 rounded-lg p-4 text-center">
+                        <div class="text-3xl mb-2">🔍</div>
+                        <div class="font-bold text-purple-300 text-sm mb-1">Inspección Sorpresa</div>
+                        <div class="text-xs text-gray-400">Justificar driver CIF</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="bg-black/50 py-8 mt-16">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-gray-400 mb-2">COSTÓPOLIS – La Aventura del Costeo</p>
+            <p class="text-gray-500 text-sm">Diseñado por <strong class="text-crimson-400">Alexander Haro</strong></p>
+            <p class="text-gray-600 text-xs mt-2">Aprende contabilidad de costos jugando 🎮</p>
+        </div>
+    </footer>
+    
+    <!-- Game Logic Script -->
+    <script src="game.js"></script>
+</body>
+</html>
