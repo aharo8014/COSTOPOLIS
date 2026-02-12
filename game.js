@@ -3305,7 +3305,11 @@ function renderMiniKardex(city) {
     const q = document.getElementById('puzzle-questions');
     if (!q) return;
 
-    const data = city.inventoryData;
+    const data = city.kardexData || city.inventoryData;
+    if (!data || !data.sales || !Array.isArray(data.purchases)) {
+        showMessage("❌ Configuración incompleta de Kardex en esta ciudad.", "error", 2600);
+        return;
+    }
     const needed = data.sales.units + (data.waste || 0);
 
     // Estado
@@ -3460,16 +3464,34 @@ function renderMiniJobOrder(city) {
     const q = document.getElementById('puzzle-questions');
     if (!q) return;
 
-    const d = city.jobOrderData;
-    const orders = d.orders.map(o => ({
-        ...o,
-        expected: {
-            MPD: o.materials,
-            MOD: o.laborHours * o.laborRate,
-            CIF: o.laborHours * o.overheadRate
-        },
-        placed: {}
-    }));
+    const d = city.orderData || city.jobOrderData;
+    if (!d || !Array.isArray(d.orders)) {
+        showMessage("❌ Configuración incompleta de Órdenes en esta ciudad.", "error", 2600);
+        return;
+    }
+
+    const orders = d.orders.map(o => {
+        const materials = Number(o.materials ?? o.mpd ?? 0);
+        const laborHours = Number(o.laborHours ?? o.modHours ?? 0);
+        const laborRate = Number(o.laborRate ?? o.modRate ?? 0);
+        const overheadRate = Number(o.overheadRate ?? d.cifRate ?? 0);
+        const units = Number(o.units ?? 1);
+
+        return {
+            id: o.id,
+            units,
+            materials,
+            laborHours,
+            laborRate,
+            overheadRate,
+            expected: {
+                MPD: materials,
+                MOD: laborHours * laborRate,
+                CIF: laborHours * overheadRate
+            },
+            placed: {}
+        };
+    });
     gameState.mini.orders = orders;
     gameState.mini.total = 6;
     gameState.mini.progress = 0;
